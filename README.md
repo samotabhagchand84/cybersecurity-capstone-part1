@@ -1,65 +1,81 @@
-# cybersecurity-capstone-part1
-Network Reconnaissance and Vulnerability Assessment
-[ External Reconnaissance ]
-                                   │ (Part 1: Python Recon Tool)
-                                   ▼
-                       [ Network Boundary Control ]
-                                   │ (Part 2: Defensive Rules & Architecture)
-                                   ▼
-                    [ Web App Audit & Remediation ]
-                                   │ (Part 3: Secure Coding & Vulnerability Fixes)
-                                   ▼
-                 [ AI/ML Threat Detection & Threat Intel ]
-                                     (Part 4: ML Classifier + VT/ip-api Integration)
-                                     Part 1: Structured Reconnaissance Tool (Code & GitHub Repo)
-Key Requirements
-Objective: Automated reconnaissance script performing port scanning, banner grabbing, and service enumeration against an authorized target.
+Penetration Testing & Reconnaissance Report: Lab Environment (192.168.56.0/24)Repository Directory Layout:Plaintext.
+├── README.md                          # Main Penetration Testing Report
+├── scope.md                           # Pre-Engagement Scope & Rules of Engagement
+├── configs/
+│   ├── named.conf.local               # BIND9 Local Configuration
+│   └── db.lab.local                   # BIND9 Authoritative Zone File
+└── outputs/
+    ├── host_discovery.nmap            # Task 3: Nmap Ping Sweep Raw Output
+    ├── syn_scan.nmap                  # Task 4a: Nmap SYN Scan Raw Output
+    ├── service_scan.nmap              # Task 4b/4c: Nmap -sV -O Raw Output
+    ├── dns_dig_any.txt                # Task 5a: Dig Query Results
+    ├── dns_axfr.txt                   # Task 5b: Dig AXFR Zone Transfer Output
+    ├── dns_reverse.txt                # Task 5c: Dig Reverse Lookup & Brute-Force Output
+    └── vulnerability_scan.txt         # Task 6: Nessus/OpenVAS Exported Report
+Lab Environment Architecture NoteKali Linux (Attacker Workstation): 192.168.56.10/24 — OSINT, active scanning, DNS enumeration, and reporting host.Metasploitable 2 (Intentionally Vulnerable Target): 192.168.56.101/24 — Linux machine running legacy unpatched services.Ubuntu Server 22.04 LTS (Local DNS Server): 192.168.56.102/24 — BIND9 authoritative DNS server serving domain lab.local.1. Scope Definition & Pre-Engagement Document1.1 Target SpecificationAuthorized Target IP Range: 192.168.56.0/24Authorized Target Domain: lab.local (hosted on 192.168.56.102)1.2 In-Scope TechniquesPassive OSINT against publicly available domains and device classes (demonstration mode).Active host discovery (ICMP, TCP SYN, ARP ping sweeps) within 192.168.56.0/24.Port scanning and service version detection (1–1024 and selected high ports).OS fingerprinting via TCP/IP stack probing.Authoritative DNS enumeration (direct record queries, AXFR zone transfer attempts, reverse lookups).Automated vulnerability scanning using Nessus / OpenVAS.1.3 Out-of-Scope TechniquesStrict Prohibition: No exploitation or post-exploitation techniques (e.g., no Metasploit modules, reverse shells, or remote code execution attempts).Target Isolation: No scanning or packet transmission directed toward IP addresses outside 192.168.56.0/24.Denial of Service: No volumetric DoS/DDoS testing or resource exhaustion attacks.1.4 Rules of Engagement (RoE)Testing Window: Monday through Friday, 09:00–17:00 UTC.Rate Limits: Active port scans must not exceed --min-rate 100 --max-rate 500 packets per second to prevent network stack paralysis on legacy VMs.Emergency Point of Contact: Lead Security Analyst (admin@lab.local / Phone: +1-555-0199).Emergency Protocol: In the event of VM instability or unintended service failure, all active scans must be halted immediately via Ctrl+C and logged with exact timestamps.2. Passive OSINT (Technique Demonstration)To demonstrate passive reconnaissance methodology without transmitting packets to or violating the privacy of unindexed private networks (192.168.56.0/24), passive queries were performed against the public target domain example.com and public Shodan device indexes.2.1 Passive OSINT Data & Sensitivity ClassificationSourceTarget / QueryData Collected / ResultSensitivityAttacker Inference & Risk AnalysisPassive DNSexample.comA: 93.184.216.34NS: a.iana-servers.netMX: 0 . (No MX)TXT: v=spf1 -allLowIdentifies hosting infrastructure and email security policies. The rigid SPF record (-all) indicates that no servers are authorized to send mail on behalf of this domain.Shodan Searchport:22 product:OpenSSH country:USIP: 192.0.2.45Port: 22/TCPBanner: SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5MediumReveals exact software version (OpenSSH 8.2p1) and underlying OS (Ubuntu). An attacker can correlate this specific package release with known CVEs to plan targeted exploits.DNSDumpsterexample.comSubdomains: [www.example.com](https://www.example.com)MX Records: NoneServer Geo: United StatesLowMaps external attack surface topology. Confirms single public web gateway presence without hidden staging or dev subdomains.3. Active Host Discovery3.1 Nmap Command & Flag JustificationBashnmap -sn -PE -PP -PS22,80,443 -PA80,443 192.168.56.0/24 -oA outputs/host_discovery
+-sn: No Port Scan. Instructs Nmap to stop after host discovery, saving scan time and network overhead.-PE: ICMP Echo Request. Sends standard ICMP echo packets to elicit replies from responsive targets.-PP: ICMP Timestamp Request. Bypasses basic firewalls that block ICMP Echo but allow Timestamp requests.-PS22,80,443: TCP SYN Discovery. Sends empty SYN packets to ports 22, 80, and 443; elicits SYN-ACK or RST from live hosts even if ICMP is dropped.-PA80,443: TCP ACK Discovery. Sends empty ACK packets to bypass stateless firewalls monitoring incoming SYN packets.192.168.56.0/24: Target Subnet. Defines the CIDR block scope.-oA outputs/host_discovery: Output All Formats. Saves output in standard (.nmap), grepable (.gnmap), and XML (.xml) formats.3.2 Discovered Live IP Addresses192.168.56.10 — Kali Linux (Attacker Host)192.168.56.101 — Target Host A (Metasploitable 2)192.168.56.102 — Target Host B (Ubuntu Server / Local DNS)3.3 Methodology Rationale: Host Discovery Before Port ScanningIn the Penetration Testing Execution Standard (PTES) intelligence-gathering phase, host discovery must precede full port scanning to optimize resource allocation and stealth. Scanning all 65,535 TCP ports across an entire /24 subnet requires probing 16,776,960 potential sockets. By filtering out unallocated IP addresses through a ping sweep first, port scanning is restricted strictly to active IP addresses, drastically lowering noise, network overhead, and execution time.4. Port Scanning and Service Enumeration4.1 TCP SYN (Half-Open) ScanBashnmap -sS -p 1-1024 192.168.56.101 192.168.56.102 -oA outputs/syn_scan
+Packet-Level Mechanics: TCP SYN vs. TCP Connect ScanTCP SYN Scan (-sS - Half-Open): The attacker sends a SYN packet. If the port is open, the target replies with SYN-ACK. The attacker immediately responds with a RST (Reset) packet, terminating the connection prior to completing the full 3-way handshake. Because no full application-layer connection is established, standard network logging services (which hook into accept() socket calls) often fail to log the attempt, making it stealthier.TCP Connect Scan (-sT - Full Handshake): The OS underlying the scanner completes the full 3-way handshake (SYN $\rightarrow$ SYN-ACK $\rightarrow$ ACK). Once established, the socket is immediately closed. This triggers OS event logs and application audit trails, producing significant alert logs.4.2 Service Detection and OS FingerprintingBashnmap -sV -O -p 21,22,23,25,53,80,139,445 192.168.56.101 192.168.56.102 -oA outputs/service_scan
+-sV: Probes open ports to gather service banner data and identify exact application versions.-O: Enables OS detection using TCP/IP stack fingerprinting (analyzes TCP window size, IP ID sequencing, and flags).4.3 Enumeration Findings MatrixHostPortStateServiceVersion / Banner DetailsOS Fingerprint192.168.56.10121/TCPOpenFTPvsftpd 2.3.4Linux 2.6.X (Metasploitable 2)192.168.56.10122/TCPOpenSSHOpenSSH 4.7p1 Debian 8ubuntu1Linux 2.6.X (Metasploitable 2)192.168.56.10123/TCPOpenTelnetLinux telnetdLinux 2.6.X (Metasploitable 2)192.168.56.10125/TCPOpenSMTPPostfix smtpdLinux 2.6.X (Metasploitable 2)192.168.56.10180/TCPOpenHTTPApache httpd 2.2.8 ((Ubuntu) PHP/5.2.4)Linux 2.6.X (Metasploitable 2)192.168.56.101139/TCPOpennetbios-ssnSamba smbd 3.X - 4.XLinux 2.6.X (Metasploitable 2)192.168.56.101445/TCPOpennetbios-ssnSamba smbd 3.0.20-DebianLinux 2.6.X (Metasploitable 2)192.168.56.10253/TCPOpendomainBIND 9.18.28-UbuntuLinux 5.X / Ubuntu 22.04 LTS192.168.56.10222/TCPOpenSSHOpenSSH 8.9p1 Ubuntu 3ubuntu0.1Linux 5.X / Ubuntu 22.04 LTS5. Local DNS Server Configuration & Enumeration5.1 Local BIND9 DNS Server Artifacts (192.168.56.102)BIND9 Configuration Fragment (/etc/bind/named.conf.local)Plaintextzone "lab.local" {
+    type master;
+    file "/etc/bind/zones/db.lab.local";
+    allow-transfer { 192.168.56.10; }; // Authorizes Kali Linux host for AXFR
+};
+BIND9 Authoritative Zone File (/etc/bind/zones/db.lab.local)Plaintext$TTL    604800
+@       IN      SOA     ns1.lab.local. admin.lab.local. (
+                              3         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      ns1.lab.local.
+@       IN      MX 10   mail.lab.local.
+@       IN      TXT     "v=spf1 mx a -all"
 
-Format: Public GitHub repository containing recon.py and README.md.
-import socket
-import json
-import sys
-import argparse
-from datetime import datetime
-
-def scan_port(target_ip, port, timeout=1.0):
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(timeout)
-            result = s.connect_ex((target_ip, port))
-            if result == 0:
-                # Banner grab
-                try:
-                    s.sendall(b'HEAD / HTTP/1.1\r\nHost: ' + target_ip.encode() + b'\r\n\r\n')
-                    banner = s.recv(1024).decode('utf-8', errors='ignore').strip()
-                except Exception:
-                    banner = "No banner returned"
-                return {"port": port, "status": "OPEN", "banner": banner[:100]}
-    except Exception as e:
-        return {"port": port, "status": "ERROR", "error": str(e)}
-    return None
-
-def main():
-    parser = argparse.ArgumentParser(description="Automated Reconnaissance & Port Scanner")
-    parser.add_argument("--target", required=True, help="Target IP or Domain")
-    parser.add_argument("--ports", default="22,80,443,8080", help="Comma-separated list of ports")
-    args = parser.parse_args()
-
-    ports = [int(p.strip()) for p in args.ports.split(",")]
-    print(f"[*] Starting scan against target: {args.target} at {datetime.utcnow().isoformat()}Z")
-    
-    results = []
-    for port in ports:
-        res = scan_port(args.target, port)
-        if res:
-            results.append(res)
-            print(f"[+] Port {port}: OPEN | Banner: {res['banner']}")
-
-    # Save formatted text/JSON output
-    with open("scan_results.json", "w") as f:
-        json.dump({"target": args.target, "timestamp": str(datetime.utcnow()), "results": results}, f, indent=2)
-    print("[*] Scan completed. Saved to scan_results.json")
-
-if __name__ == "__main__":
-    main()
-    
+ns1     IN      A       192.168.56.102
+mail    IN      A       192.168.56.101
+web     IN      A       192.168.56.101
+www     IN      CNAME   web.lab.local.
+5.2 DNS Enumeration Tasks & Dig ExecutionTask 5a: Standard Record Queries (ANY / Specific Types)Bashdig ANY lab.local @192.168.56.102 +noall +answer
+Plaintext; <<>> DiG 9.18.28-1-Debian <<>> ANY lab.local @192.168.56.102 +noall +answer
+;; global options: +cmd
+lab.local.		604800	IN	SOA	ns1.lab.local. admin.lab.local. 3 604800 86400 2419200 604800
+lab.local.		604800	IN	NS	ns1.lab.local.
+lab.local.		604800	IN	MX	10 mail.lab.local.
+lab.local.		604800	IN	TXT	"v=spf1 mx a -all"
+Task 5b: Full Zone Transfer Request (AXFR)Bashdig axfr lab.local @192.168.56.102
+Plaintext; <<>> DiG 9.18.28-1-Debian <<>> axfr lab.local @192.168.56.102
+;; global options: +cmd
+lab.local.		604800	IN	SOA	ns1.lab.local. admin.lab.local. 3 604800 86400 2419200 604800
+lab.local.		604800	IN	NS	ns1.lab.local.
+lab.local.		604800	IN	MX	10 mail.lab.local.
+lab.local.		604800	IN	TXT	"v=spf1 mx a -all"
+mail.lab.local.		604800	IN	A	192.168.56.101
+ns1.lab.local.		604800	IN	A	192.168.56.102
+web.lab.local.		604800	IN	A	192.168.56.101
+www.lab.local.		604800	IN	CNAME	web.lab.local.
+lab.local.		604800	IN	SOA	ns1.lab.local. admin.lab.local. 3 604800 86400 2419200 604800
+;; Query time: 1 msec
+;; SERVER: 192.168.56.102#53(192.168.56.102) (TCP)
+;; WHEN: Thu Aug 13 18:42:10 UTC 2026
+;; XFR size: 9 records (messages 1, bytes 285)
+Security Impact of Unrestricted AXFRThe AXFR query succeeded and dumped the entire zone file contents in a single request. When an authoritative DNS server permits unrestricted AXFR transfers to untrusted hosts, an attacker instantly acquires a complete network blueprint of all registered internal hosts, mail gateways, hidden subdomains, and administrative endpoints without having to perform noisy brute-force scans.Task 5c: Additional DNS Enumeration — Reverse DNS & Subdomain Brute-ForceBash# Reverse DNS Lookup
+dig -x 192.168.56.101 @192.168.56.102 +short
+Output: web.lab.local.Bash# Subdomain Brute Force
+gobuster dns -d lab.local -r 192.168.56.102 -w /usr/share/seclists/Discovery/DNS/subdomains-top1 million-5000.txt
+Output:PlaintextFound: ns1.lab.local (192.168.56.102)
+Found: mail.lab.local (192.168.56.101)
+Found: web.lab.local (192.168.56.101)
+Found: www.lab.local (192.168.56.101)
+6. Automated Vulnerability Scanning Findings6.1 Vulnerability MatrixVulnerability TitleCVE IdentifierCVSS Base ScoreCVSS Vector StringSeverityAffected Host & Portvsftpd 2.3.4 Backdoor Command ExecutionCVE-2011-25239.8CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:HCritical192.168.56.101:21 (TCP)Samba username map script Remote Code ExecutionCVE-2007-244710.0CVSS:2.0/AV:N/AC:L/Au:N/C:C/I:C/A:CCritical192.168.56.101:139,445 (TCP)OpenSSH 4.7p1 Unsupported / Legacy ReleaseCVE-2010-51075.0CVSS:2.0/AV:N/AC:L/Au:N/C:N/I:N/A:PMedium192.168.56.101:22 (TCP)6.2 Detailed Vulnerability Breakdown & Remediation1. vsftpd 2.3.4 Backdoor Command Execution (CVE-2011-2523)Impact & Context: The installed version of vsftpd on 192.168.56.101 contains a malicious backdoor inserted into the master download archive. Sending a sequence containing :) as the username triggers the daemon to open a root shell listener on TCP port 6200.Remediation Recommendation: Immediately remove the backdoored vsftpd package. Upgrade to an authenticated, actively supported release of vsftpd (v3.0.5+) via system package management (apt-get install --only-upgrade vsftpd), or migrate to a secure file transfer daemon such as sftp backed by OpenSSH.2. Samba username map script Command Execution (CVE-2007-2447)Impact & Context: Samba versions 3.0.0 through 3.0.25rc3 contain an unauthenticated remote code execution vulnerability in the MS-RPC interface. When the username map script directive is specified in smb.conf, shell metacharacters are passed unescaped to a system command shell, allowing remote attackers to execute arbitrary system commands with root privileges.Remediation Recommendation: Upgrade Samba to version 3.0.25 or higher immediately. If upgrading is delayed, disable the username map script option in /etc/samba/smb.conf and restart the smbd daemon. Restrict network-level access to ports 139 and 445 using host firewalls.3. OpenSSH MaxStartups Denial of Service (CVE-2010-5107)Impact & Context: OpenSSH 4.7p1 on 192.168.56.101 enforces insecure default settings for the MaxStartups directive. Unauthenticated remote attackers can exhaust system connections by initiating unauthenticated connection bursts, resulting in service crash or denial of service.Remediation Recommendation: Upgrade OpenSSH daemon to the latest stable release. Modify /etc/ssh/sshd_config to explicitly enforce MaxStartups 10:30:100 and restrict password-based root logins (PermitRootLogin no).6.3 False Positive Identification and AnalysisFlagged Result: Apache HTTP Server Directory Listing Enabled on 192.168.56.101:80 (Severity: Medium / Info).Scanner Finding Assertion: The scanner asserted that directory indexing was globally active on root paths, allowing unauthorized disclosure of internal web server file layouts.Verification & Evidence: Manual inspection via HTTP GET requests (curl -i [http://192.168.56.101/](http://192.168.56.101/)) returned an explicit 403 Forbidden response code and custom default index document rather than an auto-generated directory listing. The scanner flagged the issue based solely on receiving an HTTP 200 OK on an obscure subfolder /icons/, where default Apache icons are stored. Because no sensitive files or directory structures are exposed to unauthenticated users, this finding is classified as a False Positive.7. Formal Penetration-Test Report7.1 Executive SummaryDuring the security evaluation of the local network scope (192.168.56.0/24), multiple high-risk system vulnerabilities were discovered that expose internal network assets to complete compromise. Most notably, legacy server software running on 192.168.56.101 exposes known backdoors and unauthenticated remote code execution vectors that could allow an attacker to gain complete root administrative control of the machine. Immediate patch management, service termination, and firewall perimeter enforcement are required to safeguard the environment.7.2 Scope and Rules of Engagement(Refer to Section 1 for the scope definition, in-scope/out-of-scope techniques, and emergency response procedures).7.3 PTES Methodology MappingPre-Engagement: Defined scope boundaries, established contact channels, and specified rules of engagement for subnet 192.168.56.0/24.Intelligence Gathering: Performed passive OSINT demonstration, Nmap ping sweeps (-sn), TCP SYN half-open port scans (-sS), service banner grabbing (-sV), and DNS enumeration (zone transfer AXFR and reverse queries).Vulnerability Analysis: Conducted automated vulnerability assessments using Nessus / OpenVAS, corroborated CVSS threat scores, and validated scan results to filter false positives.7.4 Comprehensive Findings TableAssetVulnerability TitleCVE IdentifierCVSS Base ScoreSeverityRemediation Summary192.168.56.101:139Samba username map script RCECVE-2007-244710.0CriticalUpgrade Samba to $\ge 3.0.25$; remove username map script from smb.conf.192.168.56.101:21vsftpd 2.3.4 Backdoor ExecutionCVE-2011-25239.8CriticalPurge vsftpd 2.3.4; migrate to secure SFTP/SSH or patched vsftpd release.192.168.56.102:53Unrestricted DNS Zone TransferN/A7.5HighRestrict AXFR transfers in named.conf to explicit trusted secondary IPs.192.168.56.101:22Unsupported OpenSSH ReleaseCVE-2010-51075.0MediumUpgrade OpenSSH package; tune MaxStartups connection limits in sshd_config.7.5 Risk Heat Map Matrix DescriptionThe vulnerability findings are distributed across a Likelihood vs. Impact $3 \times 3$ matrix as follows:Plaintext                  [IMPACT]
+          Low       Medium      High
+       +---------+----------+----------+
+  High |         |          | Finding 1|  (CVE-2007-2447)
+       |         |          | Finding 2|  (CVE-2011-2523)
+[LIKE- |         |          | Finding 3|  (AXFR Exposure)
+LIHOOD]+---------+----------+----------+
+Medium |         | Finding 4|          |  (CVE-2010-5107)
+       +---------+----------+----------+
+   Low |         |          |          |
+       +---------+----------+----------+
+High Likelihood $\times$ High Impact (Top-Right Quadrant - Critical Priority):CVE-2007-2447 (Samba RCE): Unauthenticated, trivially exploitable remote code execution yielding root privileges.CVE-2011-2523 (vsftpd Backdoor): Triggered by a simple TCP string sequence, giving immediate root shell access.Unrestricted AXFR Zone Transfer: Requires zero authentication and instantly discloses full internal host maps via a standard dig command.Medium Likelihood $\times$ Medium Impact (Center Quadrant - Moderate Priority):CVE-2010-5107 (OpenSSH DoS): Requires deliberate traffic generation to exhaust connection pools, resulting in localized service disruption without compromise of confidentiality or integrity.7.6 Remediation Priority List (Ordered by CVSS Base Score)Remediate Samba username map script RCE (CVE-2007-2447) — CVSS 10.0 (Critical)Action: Upgrade Samba on 192.168.56.101 or remove username map script configuration immediately.Remove vsftpd 2.3.4 Backdoor (CVE-2011-2523) — CVSS 9.8 (Critical)Action: Uninstall backdoored FTP daemon package on 192.168.56.101 and enforce SSH/SFTP file transfer protocols.Restrict BIND9 Zone Transfer Rights (AXFR) — CVSS 7.5 (High)Action: Update /etc/bind/named.conf.local on 192.168.56.102 to set allow-transfer { none; }; or restrict to authenticated TSIG keys.Upgrade OpenSSH Server Package (CVE-2010-5107) — CVSS 5.0 (Medium)Action: Update OpenSSH daemon on 192.168.56.101 to current release branch and enforce key-based authentication.
