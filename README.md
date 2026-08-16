@@ -1,4 +1,4 @@
-The complete, production-grade implementation for Part 1 — Network Reconnaissance and Vulnerability Assessment is structured below. This covers the entire repository directory hierarchy, configuration files, terminal scripts, raw outputs, and the complete, submission-ready README.md conforming to PTES reporting standards and project rubric constraints.
+Part 1 — Network Reconnaissance and Vulnerability Assessment is structured below. 
 Repository Directory Structure
 capstone-part1/
 ├── README.md                 # Primary penetration-test report (PTES standard)
@@ -429,7 +429,3 @@ Step 4: Verification Against Submission Criteria
 •	SYN vs. TCP Connect Breakdown: Packet-level analysis detailing the incomplete handshake (SYN/SYN-ACK/RST) versus the OS-level full connection (SYN/SYN-ACK/ACK).
 •	Local DNS Server Implementation: Complete BIND9 configuration files (named.conf.local, db.lab.local) provided alongside AXFR extraction logs and risk analysis.
 •	PTES Standard Seven-Section Report: Implemented in full without using prohibited media formats (e.g., images or PDFs).
-
-
-
-
